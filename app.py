@@ -37,10 +37,7 @@ import base64
 import io
 import pandas_datareader as web
 
-# colors = {
-#     'background': '#c3c4b7',
-#     'text': '#7FDBFF'
-# }
+
 
 
 
@@ -63,14 +60,14 @@ scalers = {
     
 
 model_names = [{'label':model,'value':model} for model in sorted(['AdaBoost', 
-                                                                  #'Random Forest', 
+                                                                  'Random Forest', 
                                                                   'Multilayer Perceptron (Neural Net)', 
                                                                   'Stochastic Gradient Descent', 
                                                                   'Support Vector Machine',
                                                                   'Lasso',
                                                                   'Ridge',
                                                                   'Elastic net',
-                                                                 # 'K Nearest Neighbors',
+                                                                  'K Nearest Neighbors',
                                                                   'Bayesian Ridge',
                                                                  'Passive Aggressive Regressor', 
                                                                   'Linear Regression',
@@ -83,21 +80,21 @@ models = {
           
           'Multilayer Perceptron (Neural Net)':MLPRegressor(random_state = 42,
                      hidden_layer_sizes=(100,50,25,2),activation='tanh'),
-#           'Random Forest':RandomForestRegressor(random_state = 42,
-#                              n_jobs=-1,
-#                              n_estimators=5,
-#                              oob_score = True),
+          'Random Forest':RandomForestRegressor(random_state = 42,
+                             n_jobs=-1,
+                             n_estimators=100,
+                             oob_score = True),
           'Stochastic Gradient Descent':SGDRegressor(random_state = 42, penalty = 'elasticnet'),
             'Support Vector Machine':SVR(gamma='auto'),
             'Lasso':Lasso(random_state=42),
             'Ridge':Ridge(random_state=42),
             'Elastic net':ElasticNet(random_state=42),
-            #'K Nearest Neighbors':KNeighborsRegressor(n_neighbors=12, n_jobs=-1),
+            'K Nearest Neighbors':KNeighborsRegressor(n_neighbors=100, n_jobs=-1),
             'Bayesian Ridge':BayesianRidge(),
             'Passive Aggressive Regressor':PassiveAggressiveRegressor(random_state=42),
             'Linear Regression':LinearRegression(n_jobs=-1),
             'Gradient Boost':GradientBoostingRegressor(random_state=42, n_estimators=100),
-            'Extra Trees Regression':ExtraTreesRegressor(random_state = 42,n_jobs=-1,n_estimators=5)
+            'Extra Trees Regression':ExtraTreesRegressor(random_state = 42,n_jobs=-1,n_estimators=100)
            
             
             
@@ -138,7 +135,7 @@ def serve_layout():
             html.Br(),
             html.P("The data used in this tool is retrieved from Yahoo Finance API using a datareader object from Python's pandas library. For the use of this application tens of thousands of different financial symbols with their metadata have been scraped from the Internet mainly via Wikipedia and Yahoo Finance web site. The data is thereby openly distributed without any need for login credentials. There might occur some quality issues related to retrieving the data (e.g. missing data from certain days) that are due to limitations on the data providers side.",style=dict(textAlign='center')),
             html.Br(),
-            html.P("Below users can conlude their analyses in three phases encompassing twelve steps indicated with corresponding order numbers. The first step includes retrieving the data from Yahoo Finance by selecting the asset type, the country in which it is traded and the actual asset itself. In the second phase one can tweak the machine learning parameters (i.e. the model, scaling, test size and features which are the number of preceding days). After tweaking the machine learning part, in the final phase users can select the number of days to forecast into the future and apply forecasting.",style=dict(textAlign='center')),
+            html.P("Below users can conlude their analyses in three phases encompassing twelve steps indicated with corresponding order numbers. The first step includes retrieving the data from Yahoo Finance by selecting the asset type, the country in which it is traded and the actual asset itself. In the second phase one can tweak the machine learning parameters (i.e. the model, scaling, test size and features which are the number of preceding days). After tweaking the machine learning part, in the final phase users can select the number of days to forecast into the future and apply forecasting. This article uses autoregression as a regression baseline that the machile learning algorithm tris to beat.",style=dict(textAlign='center')),
             html.H2('Disclaimer',style=dict(textAlign='center',fontSize=26,color='red', fontFamily='Arial')),
             html.H3('This article is intended for academic and educational purposes and is not an investment recommendation. The information that is provided or that is derived from this website should not be a substitute for advice from an investment professional or profound research of financial instruments. The hypothetical models used in this tool do not reflect the investment performance of any actual product or strategy in existence during the periods tested and there is no guarantee that if such product or strategy existed it would have displayed similar performance characteristics. A decision to invest in any instrument or strategy should not be based on the information or conclusions contained herein. This is neither an offer to sell nor a solicitation for an offer to buy interests in financial instruments.',style=dict(textAlign='center',fontSize=20, fontFamily='Arial',color='red')),
             html.Br(),
@@ -184,15 +181,15 @@ def serve_layout():
                         html.H3('4. Select days from the past.'),
                         dcc.Slider(id = 'history',
                                    min = 1*12*30,
-                                   max = 20*12*30,
-                                   value = 12*12*30,
+                                   max = 10*12*30,
+                                   value = 7*12*30,
                                    marks={
                                        1*12*30: 'a year',
                                        5*12*30: 'five years',
                                       #12*12*30: 'twelve years',
                                         10*12*30:'ten years',
-                                        15*12*30:'fifteen years',
-                                        20*12*30:'twenty years'
+                                        #15*12*30:'fifteen years',
+                                       # 20*12*30:'twenty years'
                                    }
                                          ),
                          html.Div(id='history-container')
@@ -207,7 +204,7 @@ def serve_layout():
                 html.Button('5. Get data from Yahoo Finance!', id = 'launch', n_clicks=0)
              ]),
              html.Br(),
-             html.Div(id='yahoo'),
+             dcc.Loading(id='spinner0',fullscreen=False,type='dot',children=[html.Div(id='yahoo')]),
             html.P(id="yesterday"),
              
              dcc.Loading(id='spinner', fullscreen=False, type = 'circle', children=[html.Div(id='rearrange')]),
@@ -343,7 +340,8 @@ def get_data(n_clicks, equity_type, country, equity, history):
         #fill = None if data.Close.isna().sum()>0 else 'tozeroy'
         
         
-        return html.Div(children=[dcc.Store(id='original_data',data=data[['Close']].dropna().reset_index().to_dict('records')),
+        return html.Div(children=[dcc.Store(id='original_data',storage_type ='local',
+                                            data=data[['Close']].dropna().reset_index().to_dict('records')),
                                   dcc.Graph(figure = go.Figure(data = [
                                     go.Scatter(x = data.index,
                                               y = data.Close,
@@ -373,67 +371,45 @@ def get_data(n_clicks, equity_type, country, equity, history):
                                             
                                               style=dict(textAlign='center',fontSize=22, fontFamily='Arial')),
                                   html.Br(),
-                                  
-                                  html.Div(className='row',children = [
-                                  
-                                          html.Div(className='three columns',children=[
-                                                  html.H3('6. Select a model.'),
-                                                  dcc.Dropdown(id='model',
-                                                              multi = False,
-                                                              options = model_names,
-                                                              value='Random Forest')
-                                          ]),
+
                                       
-                                          html.Div(className='two columns',children=[
-                                                  html.H3('7. Select feature scaling.'),
-                                                  dcc.RadioItems(id='scaler',
-                                                              
-                                                              options = scaler_names,
-                                                              value='Standard',
-                                                              labelStyle={'display': 'inline-block'} )
-                                          ]),
-                                      
-                                      
-                                        #  html.Div(className='two columns',children=[
-#                                                   html.H3('8. Select test size.'),
-#                                                   dcc.RadioItems(id='test_size',
-                                                              
-#                                                               options = [{'label':str(val)+'%', 'value':str(val)+'%'} for val in [5,10,20,30]],
-#                                                               value='10%',
-#                                                               labelStyle={'display': 'inline-block'} )
-                                         # ]),
-                                  
+
                                                                             
-                                  html.Div(className='six columns',children=[
-                                                  html.H3('8. Select the number of preceding days for training.'),
+                                  html.Div(className='row',children=[
+                                                  html.H3('6. Select the number of preceding days for training.'),
                                                   dcc.Slider(id='past',
                                                               
                                                               min = 1,
-                                                              max=120,
+                                                              max=60,
                                                              step=1,
-                                                             value=60,
+                                                             value=14,
                                                               marks={
                                                                   1:'one day',
                                                                   
+                                                                  14: 'two weeks',
+                                                                  
                                                                   30: 'one month',
                                                                   
-                                                                  60: 'two months',
+                                                                  40: '40 days',
                                                                   
-                                                                  90: 'three months',
+                                                                  60: 'two months'
+                                                                  
+                                                                #  90: 'three months',
                                                                      
-                                                                    120: 'four months'
+                                                                  #  120: 'four months'
                                                                     } 
                                                             ),
                                                   html.Div(id='slider-container')
                                       ]),
                                                   
-                                          ]),
+#                                           ]),
                                           html.Div(className='row',
                                                    style={'width':'88%', 'margin':20, 'textAlign': 'center'},
                                                    children=[
-                                                        html.Button( '9. Preprocess data', 
+                                                        html.Button( '7. Preprocess data', 
                                                                     id = 'train',
                                                                     n_clicks=0)
+                                                       
                                                    ])
                                      ])
                                       
@@ -459,43 +435,23 @@ def update_output(value):
     return 'You have selected forecasting for {} days ({} months) to the future.'.format('{:,}'.format(value).replace(',',' '),round(value/(30),1))
 
 
-# @app.callback(
-#     Output('test_predict','children'),
-#     [Input('test', 'n_clicks')],
-#     [State('original_data','data'),
-#     State('model','value'),
-#      State('scaler','value'),
-#      State('past','value'),
-#      State('test_size','value'),
-#      State('equity_selection','value'),
-#      State('countries','value'),
-#     State('equity','value')
-#     ]
-# )
 def arrange(data,past):
-    
-    maximum = len(data)-1
     dfs=[]
-    while maximum >= past:
+    for index in tqdm(range(past,len(data))):
 
-        target = maximum
-        first = maximum - past
+        dff= pd.concat([pd.DataFrame(data.iloc[index]).T.reset_index(), data.iloc[index-past:index,:].T.reset_index()
+    .drop('index',axis=1)],axis=1).set_index(['index','Close'])
+        dff.columns = ['day '+str(i+1) for i in range(len(dff.columns))]
+        dfs.append(dff)
 
-        goal = pd.DataFrame(data.iloc[target]).T 
-        date = goal.index[0]
 
-        goal.columns=['Close']
-        goal['Date']=date
-        d=data.iloc[first:target].T
-        d.columns=['day '+str(i+1) for i in range(len(d.columns))]
+    dff = pd.concat(dfs)
+    dff=dff.reset_index().set_index('index')
+    dff.index.name='Date'
+    dff['Change'] =dff.Close-dff[dff.columns[-1]]
+    
+    return dff
 
-        d['Date'] = date
-        d['Close'] = goal.Close.values
-        d['Change'] = d.Close - d['day '+str(past)]
-        d=d.set_index('Date')
-        dfs.append(d)
-        maximum-=1
-    return dfs
 
 
 
@@ -534,63 +490,67 @@ def rearrange(n_clicks, data,
 
         currency = metadata[(metadata.Type==equity_type)&(metadata.Country==country)&(metadata.index==equity)].Currency.values[0]
 
-#         test_size = int(test_size.split('%')[0])/100
-#         split = 1-test_size
-      
 
-#         scl = scalers[scaler]
-#         model = models[model]
-        dfs = []
-
-        maximum = len(data)-1
-        
-#         start =time.time()
-#         while maximum >= past:
-
-#             target = maximum
-#             first = maximum - past
-
-#             goal = pd.DataFrame(data.iloc[target]).T 
-#             date = goal.index[0]
-
-#             goal.columns=['Close']
-#             goal['Date']=date
-#             d=data.iloc[first:target].T
-#             d.columns=['day '+str(i+1) for i in range(len(d.columns))]
-
-#             d['Date'] = date
-#             d['Close'] = goal.Close.values
-#             d['Change'] = d.Close - d['day '+str(past)]
-#             d=d.set_index('Date')
-#             dfs.append(d)
-#             maximum-=1
-#         end = time.time()
-        
-        #print('Arranging took {} seconds'.format(end-start))
         start =time.time()
         try:
-            df = pd.concat(arrange(data=data,past=past)).sort_index()
+            df = arrange(data=data,past=past)#pd.concat(arrange(data=data,past=past)).sort_index()
             df['Currency']=currency
             df['Equity']=equity
         except:
-            return html.Div('Not enough data.',style={'width':'88%', 'margin':20, 'textAlign': 'center','fontSize':22})
+            return html.Div('Try again with less data.',style={'width':'88%', 'margin':20, 'textAlign': 'center','fontSize':22})
        
         end = time.time()
         print('Arranging took {} seconds'.format(end-start))
         
-        return html.Div(id = 'test_section', style={'width':'88%', 'margin':20, 'textAlign': 'center'},
-                        children=[html.P('Ready!'),
-                            dcc.Store(id='manipulated_data',data=df.reset_index().to_dict('records')),
+        return html.Div(#style={'width':'88%', 'margin':20, 'textAlign': 'center'},
+                        id = 'test_section',
+                        children=[
+                                  html.P('Ready!'),
+                                  dcc.Store(id='manipulated_data',data=df.reset_index().to_dict('records')),
                                   html.Br(),
-                                  html.H3('10. Select test size.'),
-                                                  dcc.RadioItems(id='test_size',
+                                  
+                                  html.Div(className='row',children = [
+                                  
+                                          html.Div(className='four columns',children=[
+                                                  html.H3('8. Select a model.'),
+                                                  dcc.Dropdown(id='model',
+                                                              multi = False,
+                                                              options = model_names,
+                                                              value='Lasso')
+                                          ]),
+                                      
+                                          html.Div(className='four columns',children=[
+                                                  html.H3('9. Select feature scaling.'),
+                                                  dcc.RadioItems(id='scaler',
                                                               
-                                                              options = [{'label':str(val)+'%', 'value':str(val)+'%'} for val in [5,10,20,30]],
-                                                              value='10%',
-                                                              labelStyle={'display': 'inline-block'} ),html.Br(),
-                                  html.Button( '11. Test', 
-                                                                    id = 'test',
-                                                                    n_clicks=0)])
+                                                              options = scaler_names,
+                                                              value='Standard',
+                                                              labelStyle={'display': 'inline-block'} )
+                                          ]),
+                                              
+                                          html.Div(className= 'four columns', 
+                                                   children=[
+                                          
+                                                      html.H3('10. Select test size.'),
+                                                      dcc.RadioItems(id='test_size',                                                              
+                                    options = [{'label':str(val)+' days', 'value':str(val)+' days'} for val in [10,20,40]],
+                                                              value='10 days',
+                                                              labelStyle={'display': 'inline-block'} )
+                                                  ])
+                                   ]),
+                                 
+    
+                                       
+
+                            html.Div(#className='row',
+                                     style={'width':'88%', 'margin':20, 'textAlign': 'center'},
+                                     children=[
+                                         html.Button( '11. Test', id = 'test',n_clicks=0)
+                            ])
+                        ])
+    
+                                                                
+    
 
 @app.callback(
     Output('test_predict','children'),
@@ -630,9 +590,9 @@ def test(n_clicks, data,
         features = list(df.drop(['Close','Change'],axis=1).columns)
         predicted_label = ['Change']
 
-        test_size = int(test_size.split('%')[0])/100
-        split = 1-test_size
-        df_split = int(split*len(df))
+        test_size = int(test_size.split(' days')[0])#/100
+        #split = 1-test_size
+        df_split = -test_size#int(split*len(df))
         
         
         scl = scalers[scaler]
@@ -768,8 +728,8 @@ def test(n_clicks, data,
 
                                  html.Div(children=[
                                          dcc.Graph(figure = go.Figure(data = [
-                                                                      go.Scatter(x = train_data.index,
-                                                                                              y = train_data.Close,
+                                                                      go.Scatter(x = train_data.iloc[int(-.4*len(train_data)):,:].index,
+                                                                                              y = train_data.iloc[int(-.4*len(train_data)):,:].Close,
                                                                                               name = 'Train data',
                                                                                               marker = dict(color='blue')),
 
@@ -835,20 +795,26 @@ def test(n_clicks, data,
                            html.H2('11. Select future days to forecast.'),
                            dcc.Slider(id = 'forecast_length',
                                       min = 1,
-                                      max = 5*12*30,
+                                      max = 90,
                                       value = 21,
                                       marks ={
                                           1: 'one day',
+                                          
+                                          #7: 'one week',
+                                          
+                                          14: 'two weeks',
+                                          
+                                          30:'one month',
 
-                                          90:'three monts',
+                                          90:'three months'
 
-                                          180:'six months',
-                                          270: 'nine months',
-                                          12*30:'one year',
-                                          2*12*30:'two years',
-                                          3*12*30: 'three years',
-                                          4*12*30:'four years',
-                                          5*12*30:'five years'
+                                          #180:'six months'
+                                        #  270: 'nine months',
+                                        #  12*30:'one year',
+#                                           2*12*30:'two years',
+#                                           3*12*30: 'three years',
+#                                           4*12*30:'four years',
+#                                           5*12*30:'five years'
 
 
                                       }),
@@ -952,8 +918,8 @@ def forecast(n_clicks, data, model, scaler, prediction_length):
         return html.Div(children=[
         
                 dcc.Graph(figure=go.Figure(data = [
-            go.Scatter(x = df.index,
-                      y = df.Close,
+            go.Scatter(x = df.iloc[int(-.2*len(df)):,:].index,
+                      y = df.iloc[int(-.2*len(df)):,:].Close,
                       name = 'Actual',
                        fill='tozeroy',
                       marker = dict(color='green')),
