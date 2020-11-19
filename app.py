@@ -225,7 +225,7 @@ def serve_layout():
                                 html.A('Medium', href='https://towardsdatascience.com/regression-an-explanation-of-regression-metrics-and-what-can-go-wrong-a39a9793d914')
                                ]),
                     html.Label(['Get from ', 
-                                html.A('GitHub', href='https://github.com/tuopouk/vaestometsa/tree/master')
+                                html.A('GitHub', href='https://github.com/tuopouk/myfinanceai')
                                ]),
                     html.Label(['by Tuomas Poukkula. ', 
                                 html.A('Follow on Twitter.', href='https://twitter.com/TuomasPoukkula')
