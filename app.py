@@ -433,21 +433,41 @@ def update_output(value):
 
 def arrange(data,past):
     dfs=[]
-    for index in tqdm(range(past,len(data))):
+#     for index in tqdm(range(past,len(data))):
 
-        dff= pd.concat([pd.DataFrame(data.iloc[index]).T.reset_index(), data.iloc[index-past:index,:].T.reset_index()
-    .drop('index',axis=1)],axis=1).set_index(['index','Close'])
-        dff.columns = ['day '+str(i+1) for i in range(len(dff.columns))]
-        dfs.append(dff)
+#         dff= pd.concat([pd.DataFrame(data.iloc[index]).T.reset_index(), data.iloc[index-past:index,:].T.reset_index()
+#     .drop('index',axis=1)],axis=1).set_index(['index','Close'])
+#         dff.columns = ['day '+str(i+1) for i in range(len(dff.columns))]
+#         dfs.append(dff)
 
 
-    dff = pd.concat(dfs)
-    dff=dff.reset_index().set_index('index')
-    dff.index.name='Date'
-    dff['Change'] =dff.Close-dff[dff.columns[-1]]
-    dff = dff[[c for c in dff.columns if 'day' in c]+['Close','Change']]
+#     dff = pd.concat(dfs)
+#     dff=dff.reset_index().set_index('index')
+#     dff.index.name='Date'
+#     dff['Change'] =dff.Close-dff[dff.columns[-1]]
+#     dff = dff[[c for c in dff.columns if 'day' in c]+['Close','Change']]
     
-    return dff.sort_index()
+    
+    for index in tqdm(range(past, len(data))):
+
+        goal = pd.DataFrame(data.iloc[index]).T 
+
+        d=data.iloc[index-past:index,:].T
+        d.columns=['day '+str(i+1) for i in range(len(d.columns))]
+
+        d['Date'] = goal.index[0]#date
+        d['Close'] = goal[goal.columns[0]].values[0]#goal.Close.values
+        d['Change'] = d.Close - d['day '+str(past)]
+        d=d.set_index('Date')
+        dfs.append(d)
+    
+
+    dff=pd.concat(dfs).sort_index()
+    dff=dff[[c for c in dff.columns if 'day' in c]+['Close','Change']]
+    
+    
+    
+    return dff
 
 
 
@@ -490,6 +510,7 @@ def rearrange(n_clicks, data,  past, equity_type, country, equity):
        
         end = time.time()
         print('Arranging took {} seconds'.format(end-start))
+
         
         return html.Div(
                         id = 'test_section',
