@@ -340,7 +340,7 @@ def get_data(n_clicks, equity_type, country, equity, history):
         #fill = None if data.Close.isna().sum()>0 else 'tozeroy'
         
         
-        return html.Div(children=[dcc.Store(id='original_data',storage_type ='local',
+        return html.Div(children=[dcc.Store(id='original_data',
                                             data=data[['Close']].dropna().reset_index().to_dict('records')),
                                   dcc.Graph(figure = go.Figure(data = [
                                     go.Scatter(x = data.index,
