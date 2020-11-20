@@ -6,11 +6,10 @@ import numpy as np
 import requests
 import plotly.graph_objs as go
 
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import SGDRegressor, Lasso, Ridge, ElasticNet,BayesianRidge,PassiveAggressiveRegressor,LinearRegression
 from sklearn.neural_network import MLPRegressor
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.ensemble import AdaBoostRegressor, GradientBoostingRegressor, ExtraTreesRegressor
+from sklearn.ensemble import AdaBoostRegressor, GradientBoostingRegressor, ExtraTreesRegressor, RandomForestRegressor
 from statsmodels.tsa.ar_model import AR
 from sklearn.svm import SVR
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
@@ -24,7 +23,7 @@ warnings.filterwarnings('ignore')
 
 import math
 import time
-from sklearn.metrics import mean_squared_error, mean_absolute_error,  explained_variance_score, mean_squared_log_error,median_absolute_error,r2_score
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -36,9 +35,6 @@ import dash_daq as daq
 import base64
 import io
 import pandas_datareader as web
-
-
-
 
 
 prediction_length = 5*12*30
@@ -133,7 +129,7 @@ def serve_layout():
             
             html.P("Investors base their investment decisions on expected future returns on their investments. Such knowledge required for a sophisticated investment decision should be a result of a thorough analysis of the invested item. With machine learning one can search for such patters in an investment's (e.g. stock, ETF etc.) history data that are invisible for a human observer but reacheable with the utilization of data science. Much work related to predicting stock prices with machine learning is mostly related with deep neural works, especially LSTM networks. These models can grow very heavy in terms of required processing power and execution time. This application aims to give the user the possibility to test more light-weight machine learning models to predict investment prices. This mainly by selecting the number of features (i.e. the number of days before the current closing date) and using supervised learning algorithms to predict the last closing date's absolute change in price. This application is meant for testing simple machine learning techniques in the context of asset prices. This is only a work of a hobbyist intended for self-learning and for academic purposes only.",style=dict(textAlign='center')),
             html.Br(),
-            html.P("The data used in this tool is retrieved from Yahoo Finance API using a datareader object from Python's pandas library. For the use of this application tens of thousands of different financial symbols with their metadata have been scraped from the Internet mainly via Wikipedia and Yahoo Finance web site. The data is thereby openly distributed without any need for login credentials. There might occur some quality issues related to retrieving the data (e.g. missing data from certain days) that are due to limitations on the data providers side.",style=dict(textAlign='center')),
+            html.P("The data used in this tool is retrieved from Yahoo Finance API using a datareader object from Python's pandas library. For the use of this application tens of thousands of different financial symbols with their metadata have been scraped from the Internet mainly via Wikipedia and Yahoo Finance web site. The data is thereby openly distributed without any need for login credentials. There might occur some quality issues related to retrieving the data (e.g. missing data from certain days) that are due to limitations on the data providers side. This is hosted on Heroku's free server which also has its limitations. If for some reason the data won't get visualized, it is most probably due to the server's lack of capacity to process that much data. If that happens, you try again by retrieving less past data. The application is meant for light weight purposes to run on a relatively weak server. The code though is open and you can get it from Github (links down below) and try it or even develop it on your own computer.",style=dict(textAlign='center')),
             html.Br(),
             html.P("Below users can conlude their analyses in three phases encompassing twelve steps indicated with corresponding order numbers. The first step includes retrieving the data from Yahoo Finance by selecting the asset type, the country in which it is traded and the actual asset itself. In the second phase one can tweak the machine learning parameters (i.e. the model, scaling, test size and features which are the number of preceding days). After tweaking the machine learning part, in the final phase users can select the number of days to forecast into the future and apply forecasting. This article uses autoregression as a regression baseline that the machile learning algorithm tris to beat.",style=dict(textAlign='center')),
             html.H2('Disclaimer',style=dict(textAlign='center',fontSize=26,color='red', fontFamily='Arial')),
@@ -355,7 +351,7 @@ def get_data(n_clicks, equity_type, country, equity, history):
                                              layout = go.Layout(height=700,template="seaborn",xaxis = dict(title = 'Date'),
                                                                yaxis = dict(title='Closing Price ('+currency+')'),
                                                                 hovermode="x unified",
-                                                                title = dict(font=dict(family='Arial',size=23),text = '{} Daily Closing Price ({}) <br>from {} to {}'.format(equity,currency,pd.to_datetime(data.index.min()).strftime("%d %B, %Y"),pd.to_datetime(data.index.max()).strftime("%d %B, %Y")),
+                                                                title = dict(font=dict(family='Arial',size=23),text = '{} Daily Closing Price ({}) <br>from {} to {}'.format(equity,currency,pd.to_datetime(data.index.min()).strftime("%A %B %dth, %Y").replace(' 0',' ').replace('1th','1st').replace('2th','2nd').replace('3th','3rd').replace('11st','11th').replace('12nd','12th').replace('13rd','13th'),pd.to_datetime(data.index.max()).strftime("%A %B %dth, %Y").replace(' 0',' ').replace('1th','1st').replace('2th','2nd').replace('3th','3rd').replace('11st','11th').replace('12nd','12th').replace('13rd','13th')),
                                                                              x=0.5
                                                                             )
                                                                )
@@ -371,8 +367,8 @@ def get_data(n_clicks, equity_type, country, equity, history):
                                             
                                               style=dict(textAlign='center',fontSize=22, fontFamily='Arial')),
                                   html.Br(),
-
-                                      
+                                  
+                                    
 
                                                                             
                                   html.Div(className='row',children=[
@@ -402,7 +398,7 @@ def get_data(n_clicks, equity_type, country, equity, history):
                                                   html.Div(id='slider-container')
                                       ]),
                                                   
-#                                           ]),
+
                                           html.Div(className='row',
                                                    style={'width':'88%', 'margin':20, 'textAlign': 'center'},
                                                    children=[
@@ -449,8 +445,9 @@ def arrange(data,past):
     dff=dff.reset_index().set_index('index')
     dff.index.name='Date'
     dff['Change'] =dff.Close-dff[dff.columns[-1]]
+    dff = dff[[c for c in dff.columns if 'day' in c]+['Close','Change']]
     
-    return dff
+    return dff.sort_index()
 
 
 
@@ -459,22 +456,14 @@ def arrange(data,past):
     Output('rearrange','children'),
     [Input('train', 'n_clicks')],
     [State('original_data','data'),
-    #State('model','value'),
-     #State('scaler','value'),
      State('past','value'),
-     #State('test_size','value'),
      State('equity_selection','value'),
      State('countries','value'),
     State('equity','value')
     ]
 )
                                  
-def rearrange(n_clicks, data, 
-             # model, 
-             # scaler,
-              past,
-              #test_size,
-              equity_type, country, equity):
+def rearrange(n_clicks, data,  past, equity_type, country, equity):
     
     
     if n_clicks > 0:
@@ -493,7 +482,7 @@ def rearrange(n_clicks, data,
 
         start =time.time()
         try:
-            df = arrange(data=data,past=past)#pd.concat(arrange(data=data,past=past)).sort_index()
+            df = arrange(data=data,past=past)
             df['Currency']=currency
             df['Equity']=equity
         except:
@@ -502,10 +491,10 @@ def rearrange(n_clicks, data,
         end = time.time()
         print('Arranging took {} seconds'.format(end-start))
         
-        return html.Div(#style={'width':'88%', 'margin':20, 'textAlign': 'center'},
+        return html.Div(
                         id = 'test_section',
                         children=[
-                                  html.P('Ready!'),
+                                  html.P('Ready!',style={'width':'88%', 'margin':20, 'textAlign': 'center','fontSize':15}),
                                   dcc.Store(id='manipulated_data',data=df.reset_index().to_dict('records')),
                                   html.Br(),
                                   
@@ -542,14 +531,14 @@ def rearrange(n_clicks, data,
     
                                        
 
-                            html.Div(#className='row',
+                            html.Div(
                                      style={'width':'88%', 'margin':20, 'textAlign': 'center'},
                                      children=[
                                          html.Button( '11. Test', id = 'test',n_clicks=0)
                             ])
                         ])
-    
-                                                                
+
+                                 
     
 
 @app.callback(
@@ -558,23 +547,16 @@ def rearrange(n_clicks, data,
     [State('manipulated_data','data'),
     State('model','value'),
      State('scaler','value'),
-     #State('past','value'),
-     State('test_size','value'),
-      #State('equity_selection','value'),
-     # State('countries','value'),
-     #State('equity','value')
+     State('test_size','value')
+
     ]
 )
                                  
 def test(n_clicks, data, 
              model, 
              scaler,
-             #past,
-             test_size,
-            #  equity_type, 
-            #  country, 
-            #  equity
-             ):                                  
+             
+             test_size):                                  
     if n_clicks > 0:
         
         if data is None:
@@ -590,9 +572,9 @@ def test(n_clicks, data,
         features = list(df.drop(['Close','Change'],axis=1).columns)
         predicted_label = ['Change']
 
-        test_size = int(test_size.split(' days')[0])#/100
-        #split = 1-test_size
-        df_split = -test_size#int(split*len(df))
+        test_size = int(test_size.split(' days')[0])
+        
+        df_split = -test_size
         
         
         scl = scalers[scaler]
@@ -636,7 +618,7 @@ def test(n_clicks, data,
 
         sim_data = sim_data.iloc[1:,:]
         sim_data.index = test_data.index
-
+        
         ar_data = sim_data.copy()
         ar_data.Close = AR(train_data.Close.values).fit().predict(start=len(train_data),end=len(train_data)+len(test_data)-1, dynamic=False)
 
@@ -723,7 +705,7 @@ def test(n_clicks, data,
 
         return html.Div(id = 'test_section', 
                             children=[
-                                #dcc.Store('manipulated_data',data=df.reset_index().to_dict('records')),
+                                
 
 
                                  html.Div(children=[
@@ -764,7 +746,7 @@ def test(n_clicks, data,
                                                                                         xaxis = dict(showgrid=False,title = 'Date'),
                                                                                        hovermode="x unified",
                                                                                        yaxis = dict(showgrid=False,title='Closing Price ('+currency+')'),
-              title = dict(font=dict(family='Arial',size=23),text = '{} Daily Closing Price ( {} )<br>from {} to {}'.format(equity,currency,pd.to_datetime(sim_data.index.min()).strftime("%d %B, %Y"),pd.to_datetime(sim_data.index.max()).strftime("%d %B, %Y")),x=0.5 )))),
+              title = dict(font=dict(family='Arial',size=23),text = '{} Daily Closing Price ( {} )<br>from {} to {}'.format(equity,currency,pd.to_datetime(sim_data.index.min()).strftime("%A %B %dth, %Y").replace(' 0',' ').replace('1th','1st').replace('2th','2nd').replace('3th','3rd').replace('11st','11th').replace('12nd','12th').replace('13rd','13th'),pd.to_datetime(sim_data.index.max()).strftime("%A %B %dth, %Y").replace(' 0',' ').replace('1th','1st').replace('2th','2nd').replace('3th','3rd').replace('11st','11th').replace('12nd','12th').replace('13rd','13th')),x=0.5 )))),
 
 
                                     html.Div(className='row',children=[
@@ -808,9 +790,9 @@ def test(n_clicks, data,
 
                                           90:'three months'
 
-                                          #180:'six months'
+                                          #180:'six months',
                                         #  270: 'nine months',
-                                        #  12*30:'one year',
+                                          #12*30:'one year'
 #                                           2*12*30:'two years',
 #                                           3*12*30: 'three years',
 #                                           4*12*30:'four years',
@@ -842,10 +824,7 @@ def test(n_clicks, data,
     [State('manipulated_data','data'),
     State('model','value'),
      State('scaler','value'),
- 
-  #  State('equity_selection','value'),
-   #  State('countries','value'),
- #   State('equity','value'),
+
      State('forecast_length','value')
     ]
 )
@@ -869,10 +848,6 @@ def forecast(n_clicks, data, model, scaler, prediction_length):
         features = list(df.drop(['Close','Change'],axis=1).columns)
         predicted_label = ['Change']
 
-        #symbol = metadata[(metadata.Type==equity_type)&(metadata.Country==country)&(metadata.index==equity)].Symbol.values[0]
-
-
-        #currency = metadata[(metadata.Type==equity_type)&(metadata.Country==country)&(metadata.index==equity)].Currency.values[0]
 
         scl = scalers[scaler]
         model = models[model]
@@ -954,7 +929,7 @@ def forecast(n_clicks, data, model, scaler, prediction_length):
                            hovermode="x unified",
                                         xaxis = dict(title = 'Date'),
                                          yaxis = dict(title='Closing Price ('+currency+')'),
-                                         title = dict(font=dict(family='Arial',size=23),x=0.5,text='{} Daily Closing Price ( {} ) <br>from {} to {}'.format(equity,currency,pd.to_datetime(df_predict.index.min()).strftime("%d %B, %Y"),pd.to_datetime(df_predict.index.max()).strftime("%d %B, %Y")))
+                                         title = dict(font=dict(family='Arial',size=23),x=0.5,text='{} Daily Closing Price ( {} ) <br>from {} to {}'.format(equity,currency,pd.to_datetime(df_predict.index.min()).strftime("%A %B %dth, %Y").replace(' 0',' ').replace('1th','1st').replace('2th','2nd').replace('3th','3rd').replace('11st','11th').replace('12nd','12th').replace('13rd','13th'),pd.to_datetime(df_predict.index.max()).strftime("%A %B %dth, %Y").replace(' 0',' ').replace('1th','1st').replace('2th','2nd').replace('3th','3rd').replace('11st','11th').replace('12nd','12th').replace('13rd','13th')))
                                           )
                          )
                          )
