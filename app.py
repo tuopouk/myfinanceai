@@ -447,7 +447,8 @@ def arrange(data,past):
 #     dff['Change'] =dff.Close-dff[dff.columns[-1]]
 #     dff = dff[[c for c in dff.columns if 'day' in c]+['Close','Change']]
     
-    
+# This is a bit faster yet less elegant.
+
     for index in tqdm(range(past, len(data))):
 
         goal = pd.DataFrame(data.iloc[index]).T 
