@@ -203,14 +203,14 @@ def serve_layout():
              ]),
              html.Br(),
              
-             html.Div(id='data_store', children=[dcc.Store(id='yahoo_data'),dcc.Store(id='prepro_data')]),
+             html.Div(id='data_store', children=[dcc.Store(id='yahoo_data')]),
          
-             dcc.Loading(id='spinner0',fullscreen=False,type='dot',children=[html.Div(id='yahoo')]),
+             dcc.Loading(id='spinner',fullscreen=False,type='dot',children=[html.Div(id='yahoo')]),
             html.P(id="yesterday"),
-             
-             dcc.Loading(id='spinner', fullscreen=False, type = 'circle', children=[html.Div(id='rearrange')]),
-             dcc.Loading(id='spinner2', fullscreen=False, type = 'graph', children=[html.Div(id='test_predict')]),
-            dcc.Loading(id='spinner3', fullscreen=False, type = 'cube', children=[html.Div(id='forecast')]),
+
+             dcc.Loading(id='spinner2', fullscreen=False, type = 'circle', children=[dcc.Store(id='prepro_data'),html.Div(id='rearrange')]),
+             dcc.Loading(id='spinner3', fullscreen=False, type = 'graph', children=[html.Div(id='test_predict')]),
+            dcc.Loading(id='spinner4', fullscreen=False, type = 'cube', children=[html.Div(id='forecast')]),
         
                                 html.Label(['Data Source: ', 
                                 html.A('Yahoo Finance via Pandas Data Reader', href='https://finance.yahoo.com/')
