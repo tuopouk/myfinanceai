@@ -24,10 +24,10 @@ warnings.filterwarnings('ignore')
 import math
 import time
 
-import dash
+#import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output, State
+#from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 from flask import Flask
 import os
@@ -35,6 +35,7 @@ import dash_daq as daq
 import base64
 import io
 import pandas_datareader as web
+from dash_extensions.enrich import Dash, ServersideOutput, Output, Input, State, Trigger
 
 
 prediction_length = 5*12*30
@@ -107,7 +108,7 @@ metadata = pd.read_excel('yahoo_metadata_stable.xlsx').set_index('Name')
 
 server = Flask(__name__)
 server.secret_key = os.environ.get('secret_key','secret')
-app = dash.Dash(name = __name__, server = server)
+app = Dash(name = __name__, server = server,prevent_initial_callbacks=True)
 
 
 app.title = 'My Finance AI'
@@ -119,10 +120,10 @@ data = []
 
 def serve_layout():
     return html.Div(
-        #style={'backgroundColor': colors['background']},
+        
                     children= [
             
-                  
+                
             #html.Br(),
             html.H1('Analyzing financial instrument prices with machine learning', style=dict(textAlign='center',fontSize=55, fontFamily='Arial',color = "blue")),
             html.Br(),
@@ -167,8 +168,9 @@ def serve_layout():
                     
                      html.Div(id = 'asset_selection',className='five columns',children=[
                      
-                         html.Div(id='asset_title'),
-                         dcc.Dropdown(id = 'equity',multi = False, value = 'Nokia Corporation')
+                         html.Div(id='asset_title',children=[html.H3("3. Select from Finland's businesses")]),
+                         
+                         dcc.Dropdown(id = 'equity',multi = False, options = [{'label':name,'value':name} for name in sorted(list(pd.unique(metadata[(metadata.Type=='Stocks')&(metadata.Country=='Finland')].index)))], value = 'Nokia Corporation')
                      
                      ]),
 
@@ -200,6 +202,9 @@ def serve_layout():
                 html.Button('5. Get data from Yahoo Finance!', id = 'launch', n_clicks=0)
              ]),
              html.Br(),
+             
+             html.Div(id='data_store', children=[dcc.Store(id='yahoo_data'),dcc.Store(id='prepro_data')]),
+         
              dcc.Loading(id='spinner0',fullscreen=False,type='dot',children=[html.Div(id='yahoo')]),
             html.P(id="yesterday"),
              
@@ -282,47 +287,59 @@ def update_asset_value(equity_type, country):
     return value
     
 
-
 @app.callback(
-    Output('yahoo','children'),
-    [Input('launch', 'n_clicks')],
-    [
+    ServersideOutput('yahoo_data','data'),
+    [Trigger('launch', 'n_clicks'),
+    
      State('equity_selection','value'),   
      State('countries','value'),
     State('equity','value'),
-     State('history','value')
-    ]
-)
-def get_data(n_clicks, equity_type, country, equity, history):
+     State('history','value')]
     
-    if n_clicks > 0:
-        
+)
+def query(equity_type, country, equity, history):
+    
+    symbol = metadata[(metadata.Type==equity_type)&(metadata.Country==country)&(metadata.index==equity)].Symbol.values[0]
+    currency = metadata[(metadata.Type==equity_type)&(metadata.Country==country)&(metadata.index==equity)].Currency.values[0]
+    start = str(datetime.today() - pd.Timedelta(days=history)).split()[0]
+    end = str(datetime.today()).split()[0]
+    data =  web.DataReader(symbol,data_source='yahoo', end = end, start = start)
+    data['Symbol']=symbol
+    data['Currency']=currency
+    data['start']=start
+    data['end']=end
+    data['equity']=equity
+    
+    return data.reset_index().to_dict('records')
 
-        symbol = metadata[(metadata.Type==equity_type)&(metadata.Country==country)&(metadata.index==equity)].Symbol.values[0]
+    
+    
 
-        currency = metadata[(metadata.Type==equity_type)&(metadata.Country==country)&(metadata.index==equity)].Currency.values[0]
-        
-        start = str(datetime.today() - pd.Timedelta(days=history)).split()[0]
-        end = str(datetime.today()).split()[0]
+@app.callback(
+    Output('yahoo','children'),
+    [
+
+     Input("yahoo_data", "data")]
+
+    
+)
+def plot_data(data):
+    
+
+    
+        if data is None:
+            raise PreventUpdate
+        else:
+            data = pd.DataFrame(data).set_index('Date')
+    
 
         
-        try:
-            data = web.DataReader(symbol, 
-                                  data_source='yahoo', 
-                                  end = end, 
-                                  start = start)
-            #data=data.asfreq('d')
-        except:
-            return html.Div(children=[html.Div('Cannot get data through Yahoo API.',style={  'textAlign': 'center','fontSize':22}),html.Label(['Check '+equity+' instead on ',
-                                             html.A('Yahoo Finance.',
-                                                    href= 'https://finance.yahoo.com/quote/'+symbol+'/',
-                                                    target="_blank"
-                                                   
-                                                   )
-                                             ],
-                                            
-                                              style=dict(textAlign='center',fontSize=22, fontFamily='Arial'))])
-        
+        symbol = data.Symbol.values[0]
+        currency = data.Currency.values[0]
+        start = data.start.values[0]
+        end=data.end.values[0]
+        equity=data.equity.values[0]
+    
         hovertemplate = ['<br><br>    Open: {}<br>    High: {}<br>    Low: {}<br><b>    Close</b>: {}<br>    Adj Close: {}<br>    Volume: {}'.format(
                                                                                                                                                round(data.iloc[i].Open,2),
         round(data.iloc[i].High,2),
@@ -336,8 +353,8 @@ def get_data(n_clicks, equity_type, country, equity, history):
         #fill = None if data.Close.isna().sum()>0 else 'tozeroy'
         
         
-        return html.Div(children=[dcc.Store(id='original_data',
-                                            data=data[['Close']].dropna().reset_index().to_dict('records')),
+        return html.Div(children=[
+
                                   dcc.Graph(figure = go.Figure(data = [
                                     go.Scatter(x = data.index,
                                               y = data.Close,
@@ -456,8 +473,8 @@ def arrange(data,past):
         d=data.iloc[index-past:index,:].T
         d.columns=['day '+str(i+1) for i in range(len(d.columns))]
 
-        d['Date'] = goal.index[0]#date
-        d['Close'] = goal[goal.columns[0]].values[0]#goal.Close.values
+        d['Date'] = goal.index[0]
+        d['Close'] = goal[goal.columns[0]].values[0]
         d['Change'] = d.Close - d['day '+str(past)]
         d=d.set_index('Date')
         dfs.append(d)
@@ -466,7 +483,7 @@ def arrange(data,past):
     dff=pd.concat(dfs).sort_index()
     dff=dff[[c for c in dff.columns if 'day' in c]+['Close','Change']]
     
-    
+   
     
     return dff
 
@@ -474,50 +491,76 @@ def arrange(data,past):
 
 
 @app.callback(
-    Output('rearrange','children'),
+    ServersideOutput('prepro_data','data'),
     [Input('train', 'n_clicks')],
-    [State('original_data','data'),
-     State('past','value'),
-     State('equity_selection','value'),
-     State('countries','value'),
-    State('equity','value')
+    [State('yahoo_data','data'),
+     State('past','value')
+
     ]
 )
-                                 
-def rearrange(n_clicks, data,  past, equity_type, country, equity):
-    
+def preprocess(n_clicks, data,  past):
     
     if n_clicks > 0:
     
+        if data is None:
+            
+            raise PreventUpdate
+        else:
+            dff = pd.DataFrame(data).set_index('Date')
+            
+            symbol = dff.Symbol.values[0]
+            currency = dff.Currency.values[0]
+            equity=dff.equity.values[0]
+            dff=dff[['Close']]
+            start=time.time()
+            try:
+                df = arrange(data=dff,past=past)
+
+                df['Currency']=currency
+                df['Equity']=equity
+                df['Symbol']=symbol
+
+            except:
+                return html.Div('Try again with less data.',style={'width':'88%', 'margin':20, 'textAlign': 'center','fontSize':22})
+
+            end = time.time()
+            print('Arranging took {} seconds'.format(end-start))
+            return df.reset_index().to_dict('records')
+
+
+@app.callback(
+    Output('rearrange','children'),
+  
+    [Input('prepro_data','data'),
+
+    ]
+)
+                                 
+def rearrange(data):
+  
+
         if data is None:
             raise PreventUpdate
         else:
             data = pd.DataFrame(data).set_index('Date')
 
 
-        symbol = metadata[(metadata.Type==equity_type)&(metadata.Country==country)&(metadata.index==equity)].Symbol.values[0]
+        symbol = data.Symbol.values[0]
 
 
-        currency = metadata[(metadata.Type==equity_type)&(metadata.Country==country)&(metadata.index==equity)].Currency.values[0]
+        currency = data.Currency.values[0]
+        equity=data.Equity.values[0]
+        
+        data=data[['Close']]
 
 
-        start =time.time()
-        try:
-            df = arrange(data=data,past=past)
-            df['Currency']=currency
-            df['Equity']=equity
-        except:
-            return html.Div('Try again with less data.',style={'width':'88%', 'margin':20, 'textAlign': 'center','fontSize':22})
-       
-        end = time.time()
-        print('Arranging took {} seconds'.format(end-start))
 
         
         return html.Div(
                         id = 'test_section',
                         children=[
                                   html.P('Ready!',style={'width':'88%', 'margin':20, 'textAlign': 'center','fontSize':15}),
-                                  dcc.Store(id='manipulated_data',data=df.reset_index().to_dict('records')),
+                                  
                                   html.Br(),
                                   
                                   html.Div(className='row',children = [
@@ -566,7 +609,7 @@ def rearrange(n_clicks, data,  past, equity_type, country, equity):
 @app.callback(
     Output('test_predict','children'),
     [Input('test', 'n_clicks')],
-    [State('manipulated_data','data'),
+    [State('prepro_data','data'),
     State('model','value'),
      State('scaler','value'),
      State('test_size','value')
@@ -587,7 +630,8 @@ def test(n_clicks, data,
             df = pd.DataFrame(data).set_index('Date')
             currency = df.Currency.values[0]
             equity = df.Equity.values[0]
-            df.drop(['Currency','Equity'],axis=1,inplace=True)
+            symbol = df.Symbol.values[0]
+            df.drop(['Currency','Equity','Symbol'],axis=1,inplace=True)
         
         
            
@@ -843,7 +887,7 @@ def test(n_clicks, data,
 @app.callback(
     Output('forecast','children'),
     [Input('forecast_button', 'n_clicks')],
-    [State('manipulated_data','data'),
+    [State('prepro_data','data'),
     State('model','value'),
      State('scaler','value'),
 
@@ -863,7 +907,8 @@ def forecast(n_clicks, data, model, scaler, prediction_length):
             df.index = pd.to_datetime(df.index)
             currency = df.Currency.values[0]
             equity = df.Equity.values[0]
-            df.drop(['Currency','Equity'],axis=1,inplace=True)
+            symbol = df.Symbol.values[0]
+            df.drop(['Currency','Equity','Symbol'],axis=1,inplace=True)
         
         
        
@@ -957,7 +1002,6 @@ def forecast(n_clicks, data, model, scaler, prediction_length):
                          )
         ])
                                                      
-
 
 app.config['suppress_callback_exceptions']=True  
 app.layout = serve_layout
