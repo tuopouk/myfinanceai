@@ -101,7 +101,7 @@ models = {
 
 
 
-metadata = pd.read_excel('yahoo_metadata_stable.xlsx').set_index('Name')
+metadata = pd.read_csv('yahoo_metadata.csv').set_index('Name')
 
 
 
