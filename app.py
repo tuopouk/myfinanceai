@@ -178,11 +178,12 @@ def serve_layout():
             html.Div(className='row',children=[
                         html.H3('4. Select days from the past.'),
                         dcc.Slider(id = 'history',
-                                   min = 1*12*30,
+                                   min = 6*30,
                                    max = 10*12*30,
                                    value = 7*12*30,
                                    marks={
-                                       1*12*30: 'a year',
+                                       6*30: 'six months',
+                                       1*12*30: 'one year',
                                        5*12*30: 'five years',
                                       #12*12*30: 'twelve years',
                                         10*12*30:'ten years',
