@@ -128,11 +128,11 @@ def serve_layout():
             html.H1('Analyzing financial instrument prices with machine learning', style=dict(textAlign='center',fontSize=55, fontFamily='Arial',color = "blue")),
             html.Br(),
             
-            html.P("Investors base their investment decisions on expected future returns on their investments. Such knowledge required for a sophisticated investment decision should be a result of a thorough analysis of the invested item. With machine learning one can search for such patters in an investment's (e.g. stock, ETF etc.) history data that are invisible for a human observer but reacheable with the utilization of data science. Much work related to predicting stock prices with machine learning is mostly related with deep neural works, especially LSTM networks. These models can grow very heavy in terms of required processing power and execution time. This application aims to give the user the possibility to test more light-weight machine learning models to predict investment prices. This mainly by selecting the number of features (i.e. the number of days before the current closing date) and using supervised learning algorithms to predict the last closing date's absolute change in price. This application is meant for testing simple machine learning techniques in the context of asset prices. This is only a work of a hobbyist intended for self-learning and for academic purposes only.",style=dict(textAlign='center')),
+            html.P("Investors base their investment decisions on expected future returns on their investments. Such knowledge required for a sophisticated investment decision should be a result of a thorough analysis of the invested item. With machine learning one can search for such patters in an investment's (e.g. stock, ETF etc.) history data that are invisible for a human observer but reachable with the utilization of data science. Much work related to predicting stock prices with machine learning is mostly related with deep neural works, especially LSTM networks. These models can grow very heavy in terms of required processing power and execution time. This application aims to give the user the possibility to test more light-weight machine learning models to predict investment prices. This mainly by selecting the number of features (i.e. the number of days before the current closing date) and using supervised learning algorithms to predict the last closing date's absolute change in price. This application is meant for testing simple machine learning techniques in the context of asset prices. This is only a work of a hobbyist intended for self-learning and for academic purposes only.",style=dict(textAlign='center')),
             html.Br(),
             html.P("The data used in this tool is retrieved from Yahoo Finance API using a datareader object from Python's pandas library. For the use of this application tens of thousands of different financial symbols with their metadata have been scraped from the Internet mainly via Wikipedia and Yahoo Finance web site. The data is thereby openly distributed without any need for login credentials. There might occur some quality issues related to retrieving the data (e.g. missing data from certain days) that are due to limitations on the data providers side. This is hosted on Heroku's free server which also has its limitations. If for some reason the data won't get visualized, it is most probably due to the server's lack of capacity to process that much data. If that happens, you try again by retrieving less past data. The application is meant for light weight purposes to run on a relatively weak server. The code though is open and you can get it from Github (links down below) and try it or even develop it on your own computer.",style=dict(textAlign='center')),
             html.Br(),
-            html.P("Below users can conlude their analyses in three phases encompassing twelve steps indicated with corresponding order numbers. The first step includes retrieving the data from Yahoo Finance by selecting the asset type, the country in which it is traded and the actual asset itself. In the second phase one can tweak the machine learning parameters (i.e. the model, scaling, test size and features which are the number of preceding days). After tweaking the machine learning part, in the final phase users can select the number of days to forecast into the future and apply forecasting. This article uses autoregression as a regression baseline that the machile learning algorithm tries to beat.",style=dict(textAlign='center')),
+            html.P("Below users can conclude their analyses in three phases encompassing twelve steps indicated with corresponding order numbers. The first step includes retrieving the data from Yahoo Finance by selecting the asset type, the country in which it is traded and the actual asset itself. In the second phase one can tweak the machine learning parameters (i.e. the model, scaling, test size and features which are the number of preceding days). After tweaking the machine learning part, in the final phase users can select the number of days to forecast into the future and apply forecasting. This article uses autoregression as a regression baseline that the machine learning algorithm tries to beat.",style=dict(textAlign='center')),
             html.H2('Disclaimer',style=dict(textAlign='center',fontSize=26,color='red', fontFamily='Arial')),
             html.H3('This article is intended for academic and educational purposes and is not an investment recommendation. The information that is provided or that is derived from this website should not be a substitute for advice from an investment professional or profound research of financial instruments. The hypothetical models used in this tool do not reflect the investment performance of any actual product or strategy in existence during the periods tested and there is no guarantee that if such product or strategy existed it would have displayed similar performance characteristics. A decision to invest in any instrument or strategy should not be based on the information or conclusions contained herein. This is neither an offer to sell nor a solicitation for an offer to buy interests in financial instruments.',style=dict(textAlign='center',fontSize=20, fontFamily='Arial',color='red')),
             html.Br(),
@@ -471,15 +471,22 @@ def arrange(data,past):
 
         goal = pd.DataFrame(data.iloc[index]).T 
 
+#         d=data.iloc[index-past:index,:].T
+#         d.columns=['day '+str(i+1) for i in range(len(d.columns))]
+
+#         d['Date'] = goal.index[0]
+#         d['Close'] = goal[goal.columns[0]].values[0]
+#         d['Change'] = d.Close - d['day '+str(past)]
+#         d=d.set_index('Date')
+#         dfs.append(d)
         d=data.iloc[index-past:index,:].T
         d.columns=['day '+str(i+1) for i in range(len(d.columns))]
-
+        d = pd.DataFrame(d.loc['Close']).T
         d['Date'] = goal.index[0]
-        d['Close'] = goal[goal.columns[0]].values[0]
+        d['Close'] = goal['Close'].values[0]
         d['Change'] = d.Close - d['day '+str(past)]
         d=d.set_index('Date')
         dfs.append(d)
-    
 
     dff=pd.concat(dfs).sort_index()
     dff=dff[[c for c in dff.columns if 'day' in c]+['Close','Change']]
