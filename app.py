@@ -34,9 +34,12 @@ import os
 import dash_daq as daq
 import base64
 import io
-import pandas_datareader as web
+#import pandas_datareader as web
+from pandas_datareader import data as pdr
+import yfinance as yfin
 from dash_extensions.enrich import Dash, ServersideOutput, Output, Input, State, Trigger
 
+yfin.pdr_override()
 
 prediction_length = 5*12*30
 
@@ -304,7 +307,7 @@ def query(equity_type, country, equity, history):
     currency = metadata[(metadata.Type==equity_type)&(metadata.Country==country)&(metadata.index==equity)].Currency.values[0]
     start = str(datetime.today() - pd.Timedelta(days=history)).split()[0]
     end = str(datetime.today()).split()[0]
-    data =  web.DataReader(symbol,data_source='yahoo', end = end, start = start)
+    data =  pdr.get_data_yahoo(symbol, end = end, start = start)#web.DataReader(symbol,data_source='yahoo', end = end, start = start)
     data['Symbol']=symbol
     data['Currency']=currency
     data['start']=start
