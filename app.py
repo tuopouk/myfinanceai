@@ -363,16 +363,23 @@ def plot_data(data):
                                     go.Scatter(x = data.index,
                                               y = data.Close,
                                                connectgaps=False,
-                                              name = '<b>'+equity+'</b><br>Currency in '+currency,
+                                              name = '<b>'+'Daily Closing Price'+'</b><br>Currency in '+currency,
                                               marker = dict(color='blue'),
                                                fill=fill,
                                                hovertemplate=hovertemplate
-                                              )
+                                              ),
+                                      go.Candlestick(x = data.index, 
+                                                     open = data.Open, 
+                                                     high = data.High, 
+                                                     low = data.Low, 
+                                                     close = data.Close,
+                                                     #hoverinfo=hovertemplate,
+                                                    name = '<b>'+'Daily Candlestick Chart'+'</b><br>Currency in '+currency)
                                               ],
                                              layout = go.Layout(height=700,template="seaborn",xaxis = dict(title = 'Date'),
                                                                yaxis = dict(title='Closing Price ('+currency+')'),
                                                                 hovermode="x unified",
-                                                                title = dict(font=dict(family='Arial',size=23),text = '{} Daily Closing Price ({}) <br>from {} to {}'.format(equity,currency,pd.to_datetime(data.index.min()).strftime("%A %B %dth, %Y").replace(' 0',' ').replace('1th','1st').replace('2th','2nd').replace('3th','3rd').replace('11st','11th').replace('12nd','12th').replace('13rd','13th'),pd.to_datetime(data.index.max()).strftime("%A %B %dth, %Y").replace(' 0',' ').replace('1th','1st').replace('2th','2nd').replace('3th','3rd').replace('11st','11th').replace('12nd','12th').replace('13rd','13th')),
+                                                                title = dict(font=dict(family='Arial',size=23),text = '<b>{}</b> Daily Closing Price and Candlesticks({}) <br>from {} to {}'.format(equity,currency,pd.to_datetime(data.index.min()).strftime("%A %B %dth, %Y").replace(' 0',' ').replace('1th','1st').replace('2th','2nd').replace('3th','3rd').replace('11st','11th').replace('12nd','12th').replace('13rd','13th'),pd.to_datetime(data.index.max()).strftime("%A %B %dth, %Y").replace(' 0',' ').replace('1th','1st').replace('2th','2nd').replace('3th','3rd').replace('11st','11th').replace('12nd','12th').replace('13rd','13th')),
                                                                              x=0.5
                                                                             )
                                                                )
